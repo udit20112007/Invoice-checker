@@ -89,7 +89,7 @@ test("the checks catch each planted problem", async () => {
   assert.ok(codes(9).includes("hsn"));
   assert.equal(verdictOf(checkInvoice(all[5], { today: "2026-11-13", ourGstin: "27AAHCS4821K1Z3" })), "amber");
   // a tampered total is caught when the QR says something else
-  const tampered = { ...all[6], qr: { kind: "einvoice" as const, sellerGstin: all[6].supplierGstin, buyerGstin: all[6].buyerGstin, docNo: all[6].number, docType: "INV", docDate: all[6].date, total: 118000, itemCount: 1, mainHsn: "8414", irn: all[6].irn, irnDate: "", issuer: "NIC" } };
+  const tampered = { ...all[6], qr: { kind: "einvoice" as const, sellerGstin: all[6].supplierGstin, buyerGstin: all[6].buyerGstin, docNo: all[6].number, docType: "INV", docDate: all[6].date, total: 118000, itemCount: 1, mainHsn: "8414", irn: all[6].irn, irnDate: "", issuer: "NIC", token: "" } };
   assert.ok(checkInvoice(tampered, { today: "2026-11-13" }).some((f) => f.code === "qr-mismatch"));
   // wrong buyer, future date
   assert.ok(checkInvoice(all[0], { ourGstin: "29AADCK7712P1ZX", today: "2026-11-13" }).some((f) => f.code === "buyer-mismatch"));
@@ -105,7 +105,7 @@ test("reconciliation with GSTR-2B and ITC at risk", async () => {
   const status = (n: number) => a.rows[n - 1].match.status;
   assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9].map(status), ["matched", "matched", "missing", "mismatch", "matched", "matched", "mismatch", "missing", "missing"]);
   assert.equal(a.rows[3].atRisk, 540, "Om Sai: ₹540 more GST than reported");
-  assert.equal(a.extra.map((d) => d.number).sort().join(), "DF/1043,GLC/2026/0398", "reported but not uploaded (the photo isn't in this test)");
+  assert.equal(a.extra.map((d) => d.number).sort().join(), "AC/2026/214,DF/1043,GLC/2026/0398,GLC/2026/0431,KA/2026/77,KCP/26-27/1203,KCP/CN/26-27/031,SSE/118,SSE/119", "reported but not uploaded (the photo isn't in this test)");
   const sunrise = a.suppliers.find((s) => s.name === "Sunrise Wires")!;
   assert.match(sunrise.message, /SW-2210/);
   assert.ok(!a.suppliers.some((s) => s.name === "Ganesh Lighting Co"), "a duplicate entry isn't the supplier's problem");
@@ -128,5 +128,30 @@ test("GSTR-2B Excel (portal layout) and zip are read", async () => {
   assert.deepEqual([t.docs[0].number, t.docs[0].date, t.docs[0].taxable, t.docs[0].cgst, t.docs[0].total], ["GLC/2026/0412", "2026-10-03", 30600, 2754, 36108]);
   assert.equal(t.gstin, "27AAHCS4821K1Z3");
   const z = zipSync({ "returns_102026_R2B.json": new TextEncoder().encode(fs.readFileSync(DEMO + "GSTR-2B-Oct-2026.json", "utf8")) });
-  assert.equal((await read2bFile("GSTR2B.zip", z)).docs.length, 8);
+  assert.equal((await read2bFile("GSTR2B.zip", z)).docs.length, 15);
+});
+
+test("vehicle numbers and e-way bills", async () => {
+  const { checkVehicle, ewbValid } = await import("../lib/vehicle.ts");
+  const ok = checkVehicle("mh 14 gt 4521");
+  assert.ok(ok.ok); assert.equal(ok.pretty, "MH 14 GT 4521"); assert.equal(ok.state, "Maharashtra"); assert.equal(ok.rto, "MH-14");
+  assert.ok(checkVehicle("DL3CAB1234").ok);
+  assert.ok(checkVehicle("TG07UA4412").ok);
+  assert.ok(checkVehicle("22BH1234AA").ok && checkVehicle("22BH1234AA").kind === "bh");
+  assert.match(checkVehicle("MX12AB1234").problems[0], /isn't a state/);
+  assert.match(checkVehicle("MH12AB0000").problems[0], /0000/);
+  assert.ok(!checkVehicle("MH12AB12345").ok);
+  assert.ok(!checkVehicle("15BH1234AA").ok, "BH series started in 2021");
+  const { repairVehicle } = await import("../lib/vehicle.ts");
+  assert.equal(repairVehicle("TGO7UA4412"), "TG07UA4412");
+  assert.equal(repairVehicle("MH I2 AB 1234"), "MH12AB1234");
+  assert.equal(repairVehicle("MX12AB1234"), "MX12AB1234", "a wrong state code isn't 'repaired'");
+  assert.ok(ewbValid("3310 0987 6543")); assert.ok(!ewbValid("33100987654"));
+  const seven = await readPdf("invoice-07.pdf");
+  assert.equal(seven.vehicle, "TN05BX3018"); assert.equal(seven.ewayBill, "331009876543");
+  const three = await readPdf("invoice-03.pdf");
+  assert.equal(three.vehicle, "MX12AB1234");
+  assert.ok(checkInvoice(three, { today: "2026-11-13" }).some((f) => f.code === "vehicle"));
+  assert.ok(checkInvoice({ ...seven, ewayBill: "" }, { today: "2026-11-13" }).some((f) => f.code === "ewb-missing"));
+  assert.ok(!checkInvoice(seven, { today: "2026-11-13" }).some((f) => (f.code.startsWith("ewb") && f.level !== "info") || f.code === "vehicle"));
 });

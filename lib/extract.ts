@@ -4,6 +4,7 @@
 import { cleanGstin, gstinCheckChar } from "./gst.ts";
 import { amount, date, round2 } from "./parse.ts";
 import { emptyInvoice, type Invoice, type Item } from "./types.ts";
+import { repairVehicle } from "./vehicle.ts";
 
 const AMOUNT = /\(?-?\s*(?:₹|Rs\.?|INR)?\s*\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?\)?|\(?-?\s*(?:₹|Rs\.?|INR)?\s*\d+\.\d{1,2}\)?/gi;
 const lastAmount = (line: string) => {
@@ -69,8 +70,10 @@ export function extractFields(text: string, base: Invoice = emptyInvoice("x", ""
   }
 
   // ---- names: the supplier is usually the first line; the buyer follows the "Bill to" label
-  const skip = /^(tax\s*invoice|invoice|original|duplicate|triplicate|bill\s*of\s*supply|e-?invoice|page\s*\d)/i;
-  inv.supplierName = lines.find((l) => !skip.test(l) && /[a-z]{3}/i.test(l) && !/gstin|irn|ack/i.test(l))?.replace(/\s*(tax\s*invoice)\s*$/i, "") ?? "";
+  const skip = /^(tax\s*invoice|invoice|credit\s*note|debit\s*note|original|duplicate|triplicate|bill\s*of\s*supply|e-?invoice|page\s*\d)/i;
+  inv.supplierName = lines.find((l) => !skip.test(l) && /[a-z]{3}/i.test(l) && !/gstin|irn|ack/i.test(l))?.replace(/\s*(tax\s*invoice|credit\s*note|debit\s*note)\s*$/i, "") ?? "";
+  const top = lines.slice(0, 8).join(" ");
+  inv.docType = /credit\s*note/i.test(top) ? "credit" : /debit\s*note/i.test(top) ? "debit" : "invoice";
   const bi = lines.findIndex((l) => BUYER.test(l) && !/gstin/i.test(l));
   if (bi >= 0) {
     const same = lines[bi].replace(/.*?(bill(ed)?\s*to|buyer|recipient|ship(ped)?\s*to|consignee|customer|sold\s*to)\s*(\(.*?\))?\s*[:\-]?\s*/i, "").trim();
@@ -79,11 +82,14 @@ export function extractFields(text: string, base: Invoice = emptyInvoice("x", ""
 
   // ---- invoice number, date, place of supply, reverse charge, IRN
   for (const l of lines) {
+    // a credit or debit note names the invoice it's against
+    const ref = l.match(/(?:against|original|ref(?:erence)?\.?)\s*(?:invoice|inv|bill)\s*(?:no|number|num|#)?\.?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\/\-_.]*)/i);
+    if (ref) { if (!inv.refNumber && /\d/.test(ref[1])) inv.refNumber = ref[1].replace(/[.,]$/, ""); continue; }
     if (!inv.number) {
-      const m = l.match(/(?:invoice|inv|bill)\s*(?:no|number|num|#)\.?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\/\-_.]*)/i);
+      const m = l.match(/(?:invoice|inv|bill|credit\s*note|debit\s*note|note)\s*(?:no|number|num|#)\.?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\/\-_.]*)/i);
       if (m && !/^date$/i.test(m[1])) inv.number = m[1].replace(/[.,]$/, "");
     }
-    if (!inv.date && /date/i.test(l) && !/due|ack|irn|order|challan|po\b|delivery|supply/i.test(l)) {
+    if (!inv.date && /date/i.test(l) && !/due|ack|irn|order|challan|po\b|delivery|supply|e[\s-]*way|valid/i.test(l)) {
       const d = date(l.replace(/.*?date\s*(of\s*(issue|invoice))?\s*[:\-]?\s*/i, ""));
       if (d) inv.date = d;
     }
@@ -93,6 +99,20 @@ export function extractFields(text: string, base: Invoice = emptyInvoice("x", ""
       if (m) inv.reverseCharge = /^y/i.test(m[1]);
     }
     if (!inv.irn) { const m = l.match(/IRN\s*(?:no\.?)?\s*[:\-]?\s*([0-9a-f]{64})/i); if (m) inv.irn = m[1].toLowerCase(); }
+    if (!inv.ewayBill) { const m = l.match(/e[\s-]*way\s*bill\s*(?:no|number|#)?\.?\s*[:\-]?\s*(\d[\d ]{8,16}\d)/i); if (m) inv.ewayBill = m[1].replace(/\s/g, ""); }
+    if (!inv.ewbDate) { const m = l.match(/e[\s-]*way\s*bill\s*(?:date|dt)\.?\s*[:\-]?\s*(.+)/i); if (m) inv.ewbDate = date(m[1]); }
+    if (!inv.ewbValidUntil) { const m = l.match(/valid\s*(?:up\s*to|upto|until|till)\s*[:\-]?\s*(.+)/i); if (m) inv.ewbValidUntil = date(m[1]); }
+    if (inv.distanceKm === null) { const m = l.match(/distance\s*(?:\(\s*kms?\s*\))?\s*[:\-]?\s*(\d{1,4})\s*(?:kms?\b)?/i); if (m) inv.distanceKm = Number(m[1]); }
+    if (!inv.bank) { const m = l.match(/(?:a\/c|acc(?:oun)?t)\.?\s*(?:no|number|#)?\.?\s*[:\-]?\s*(\d[\d ]{7,20}\d)/i); if (m) inv.bank = m[1].replace(/\s/g, ""); }
+    if (!inv.phone) { const m = l.match(/(?:ph|phone|mob|mobile|tel|contact)\.?\s*(?:no\.?)?\s*[:\-]?\s*(\+?\d[\d -]{8,14}\d)/i); if (m) inv.phone = m[1].replace(/\D/g, "").slice(-10); }
+    if (!inv.email) { const m = l.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/); if (m) inv.email = m[0].toLowerCase(); }
+    if (!inv.vehicle) {
+      const m = l.match(/(?:vehicle|veh|truck|lorry|motor\s*vehicle)\s*(?:reg(?:istration|n)?\.?\s*)?(?:no|number|#)?\.?\s*[:\-]\s*(.+)/i);
+      if (m) {
+        const v = m[1].split(/\s{2,}|e[\s-]*way|transport|\bdate\b|\bL\.?R\b|\bG\.?R\b|driver|mode/i)[0].trim().match(/^[A-Z0-9][A-Z0-9 -]{3,15}[A-Z0-9]/i)?.[0];
+        if (v) inv.vehicle = repairVehicle(v);
+      }
+    }
   }
   if (!inv.date) { const d = lines.map((l) => date(l)).find(Boolean); if (d) inv.date = d; }
 

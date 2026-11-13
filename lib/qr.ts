@@ -41,6 +41,7 @@ export function decodeQr(text: string): QrInfo {
         irn: str("Irn").toLowerCase(),
         irnDate: str("IrnDt"),
         issuer: String(pickKey(payload, "iss") ?? ""),
+        token: t,
       };
     } catch { /* not an e-invoice JWT */ }
   }

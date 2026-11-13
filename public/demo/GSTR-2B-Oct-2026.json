@@ -50,6 +50,25 @@
        "cgst": 864,
        "sgst": 864,
        "cess": 0
+      },
+      {
+       "inum": "GLC/2026/0431",
+       "dt": "29-10-2026",
+       "val": 21004,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 17800,
+       "igst": 0,
+       "cgst": 1602,
+       "sgst": 1602,
+       "cess": 0
       }
      ]
     },
@@ -74,6 +93,25 @@
        "irngendate": "06-10-2026",
        "txval": 38000,
        "igst": 6840,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      },
+      {
+       "inum": "KCP/26-27/1203",
+       "dt": "30-10-2026",
+       "val": 21948,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "e-Invoice",
+       "irn": "95146313444edbb1e3b5d85ce3b2e6ecf68eaa2a9782ca6a0e35802b2afbab35",
+       "irngendate": "30-10-2026",
+       "txval": 18600,
+       "igst": 3348,
        "cgst": 0,
        "sgst": 0,
        "cess": 0
@@ -162,6 +200,106 @@
      ]
     },
     {
+     "ctin": "27AEHFS6102L1ZT",
+     "trdnm": "SHIV SHAKTI ENTERPRISES",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "SSE/118",
+       "dt": "27-10-2026",
+       "val": 48970,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 41500,
+       "igst": 0,
+       "cgst": 3735,
+       "sgst": 3735,
+       "cess": 0
+      },
+      {
+       "inum": "SSE/119",
+       "dt": "27-10-2026",
+       "val": 48321,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 40950,
+       "igst": 0,
+       "cgst": 3685.5,
+       "sgst": 3685.5,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "27AALFA4417R1ZX",
+     "trdnm": "ANNAPURNA CATERERS",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "AC/2026/214",
+       "dt": "22-10-2026",
+       "val": 8400,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 8000,
+       "igst": 0,
+       "cgst": 200,
+       "sgst": 200,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "27AKHPK7350F1Z4",
+     "trdnm": "KUMAR AGENCIES",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "KA/2026/77",
+       "dt": "25-04-2026",
+       "val": 47200,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 40000,
+       "igst": 0,
+       "cgst": 3600,
+       "sgst": 3600,
+       "cess": 0
+      }
+     ]
+    },
+    {
      "ctin": "27AAPFO2218C1ZF",
      "trdnm": "OM SAI CABLES",
      "supprd": "102026",
@@ -212,6 +350,36 @@
        "cgst": 0,
        "sgst": 0,
        "cess": 0
+      }
+     ]
+    }
+   ],
+   "cdnr": [
+    {
+     "ctin": "29AADCK7712P1ZX",
+     "trdnm": "KAVERI COMPONENTS PVT LTD",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "nt": [
+      {
+       "dt": "20-10-2026",
+       "val": 2242,
+       "pos": "27",
+       "rev": "N",
+       "typ": "C",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 1900,
+       "igst": 342,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0,
+       "ntnum": "KCP/CN/26-27/031",
+       "suptyp": "R"
       }
      ]
     }

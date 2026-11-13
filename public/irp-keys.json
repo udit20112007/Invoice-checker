@@ -1,0 +1,10 @@
+{
+ "note": "Public keys of the Invoice Registration Portals (IRPs) that sign e-invoice QR codes. Add each IRP's key (base64 SPKI) from its official documentation. The demo key only signs this app's demo invoices.",
+ "keys": [
+  {
+   "name": "Demo IRP key (demo invoices only)",
+   "demo": true,
+   "spki": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUJid9aphgllAMu4cy4AZXQ2VLMvxI367CbO8FK+hCaUmT1WvpNmP3CpDki3tsrnJ6AYVyvsB9w+ul+BI+9HdV9I0+2rvQRGrWbV1235KAKcIafykFFQ9NJNr0b5YWotCturqgfUhq+dISitfteq1LteQN/B3h6jA/SXJLShgdVV2kkOhJ8MqLE7Xbu9B7Rk1PPYewncq8phxJhSjfJnHIJ3WkgYeJl2ZCAjWDVRC7Pcb9x0bk29K+ldK6dFSXqQd1VDWTy12ZmSn6vSGyTP/FSehzA36Xk3EwoCvw+jruz1MfYECo227NU65OYyFH+ncHYrWrh9NUaTD8aFBJW43wIDAQAB"
+  }
+ ]
+}

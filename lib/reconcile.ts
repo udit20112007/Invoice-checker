@@ -1,6 +1,7 @@
 // GSTR-2B: the GST portal's list of invoices your suppliers reported. Reading it, and matching the uploaded
 // invoices against it to find ITC at risk.
-import { strFromU8, unzipSync } from "fflate";
+import { unzipSync } from "fflate";
+import { excelDate, readXlsx } from "./sheets.ts";
 import { cleanGstin } from "./gst.ts";
 import { amount, compactNo, date, invoiceKey, round2, rupees, showDate } from "./parse.ts";
 import { CRITICAL, type Verdict } from "./checks.ts";
@@ -38,28 +39,10 @@ export function parse2bJson(text: string): TwoB {
 
 // The portal's Excel: a "B2B" sheet with two heading rows ("Invoice details" over "Invoice number", …)
 export function parse2bXlsx(bytes: Uint8Array): TwoB {
-  const files = unzipSync(bytes);
-  const read = (p: string) => (files[p] ? strFromU8(files[p]) : "");
-  const unesc = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
-  const shared = [...read("xl/sharedStrings.xml").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => unesc([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((t) => t[1]).join("")));
-  const rels = Object.fromEntries([...read("xl/_rels/workbook.xml.rels").matchAll(/<Relationship [^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)].map((m) => [m[1], m[2]]));
-  const sheets = [...read("xl/workbook.xml").matchAll(/<sheet [^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)].map((m) => ({ name: unesc(m[1]), path: `xl/${rels[m[2]]?.replace(/^\/?xl\//, "")}` }));
+  const sheets = readXlsx(bytes);
   const b2b = sheets.find((s) => /^b2b$/i.test(s.name.replace(/\s/g, "")));
   if (!b2b) throw new Error("This Excel file has no B2B sheet. Use the GSTR-2B Excel downloaded from the GST portal.");
-  const col = (ref: string) => [...ref.replace(/\d+/g, "")].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-  const rowsOf = (path: string) => {
-    const out: string[][] = [];
-    for (const r of read(path).matchAll(/<row [^>]*>([\s\S]*?)<\/row>/g)) {
-      const cells: string[] = [];
-      for (const c of r[1].matchAll(/<c ([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-        const ref = c[1].match(/r="([A-Z]+\d+)"/)?.[1] ?? "A1", t = c[1].match(/t="(\w+)"/)?.[1], v = c[2]?.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? c[2]?.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1] ?? "";
-        cells[col(ref)] = t === "s" ? shared[+v] ?? "" : unesc(v);
-      }
-      out.push(Array.from(cells, (x) => x ?? ""));
-    }
-    return out;
-  };
-  const rows = rowsOf(b2b.path);
+  const rows = b2b.rows;
   const headAt = rows.findIndex((r) => r.some((c) => /gstin of supplier/i.test(c)));
   if (headAt < 0) throw new Error("Couldn't find the headings in the B2B sheet.");
   const head = rows[headAt].map((h, i) => `${h} ${rows[headAt + 1]?.[i] ?? ""}`.toLowerCase());
@@ -69,13 +52,12 @@ export function parse2bXlsx(bytes: Uint8Array): TwoB {
   for (const r of rows.slice(headAt + 2)) {
     const g = cleanGstin(r[c.g]);
     if (g.length !== 15) continue;
-    const serial = Number(r[c.dt]);
-    const d = /^\d{5}$/.test(r[c.dt] ?? "") ? new Date(Math.round((serial - 25569) * 864e5)).toISOString().slice(0, 10) : date(r[c.dt]);
+    const d = /^\d{5}$/.test(r[c.dt] ?? "") ? excelDate(Number(r[c.dt])) : date(r[c.dt]);
     docs.push({ id: `2b-${docs.length}`, gstin: g, name: r[c.n] ?? "", number: r[c.no] ?? "", date: d, kind: "INV", taxable: num(r[c.tx]), igst: num(r[c.i]), cgst: num(r[c.ce]), sgst: num(r[c.s]), cess: num(r[c.cs]), total: num(r[c.val]), itcAvailable: !/^no?$/i.test(r[c.itc] ?? ""), reverseCharge: false, period: "" });
   }
   // your own GSTIN is on the "Read me" sheet (or above the B2B headings)
   const findGstin = (text: string) => text.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]\b/)?.[0];
-  const gstin = cleanGstin(findGstin(rows.slice(0, headAt).flat().join(" ")) ?? sheets.filter((x) => x !== b2b).map((x) => findGstin(rowsOf(x.path).slice(0, 20).flat().join(" "))).find(Boolean));
+  const gstin = cleanGstin(findGstin(rows.slice(0, headAt).flat().join(" ")) ?? sheets.filter((x) => x !== b2b).map((x) => findGstin(x.rows.slice(0, 20).flat().join(" "))).find(Boolean));
   return { gstin, period: "", docs };
 }
 
@@ -90,6 +72,38 @@ export async function read2bFile(name: string, bytes: Uint8Array): Promise<TwoB>
   throw new Error("Choose the GSTR-2B file from the GST portal (.json, .xlsx or .zip).");
 }
 
+// ---------------------------------------------------------------- several months of GSTR-2B
+const docKey = (d: TwoBDoc) => `${d.gstin}|${d.kind}|${compactNo(d.number)}`;
+/** Joins several GSTR-2B files. When a document is in more than one, the newest file's version is kept. */
+export function mergeTwoB(list: TwoB[]): TwoB | null {
+  if (!list.length) return null;
+  const order = [...list].sort((a, b) => periodSort(a.period).localeCompare(periodSort(b.period)));
+  const docs = new Map<string, TwoBDoc>();
+  order.forEach((t, fi) => t.docs.forEach((d) => docs.set(docKey(d), { ...d, id: `2b-${fi}-${d.id}`, period: d.period || t.period })));
+  const last = order[order.length - 1];
+  return { gstin: order.map((t) => t.gstin).find(Boolean) ?? "", period: order.length > 1 && order[0].period !== last.period ? `${order[0].period}-${last.period}` : last.period, docs: [...docs.values()] };
+}
+const periodSort = (p: string) => (/^\d{6}$/.test(p) ? `${p.slice(2)}${p.slice(0, 2)}` : p);
+export type TwoBChange = { gstin: string; name: string; number: string; from: string; to: string; what: string };
+/** Documents that changed between GSTR-2B files: amended amounts, or reported in one file and gone from a later file of the same month. */
+export function twobChanges(list: TwoB[]): TwoBChange[] {
+  const order = [...list].sort((a, b) => periodSort(a.period).localeCompare(periodSort(b.period)));
+  const out: TwoBChange[] = [];
+  for (let i = 0; i < order.length; i++) for (let j = i + 1; j < order.length; j++) {
+    const a = order[i], b = order[j], later = new Map(b.docs.map((d) => [docKey(d), d]));
+    for (const d of a.docs) {
+      const n = later.get(docKey(d));
+      const base = { gstin: d.gstin, name: d.name, number: d.number, from: a.period || `file ${i + 1}`, to: b.period || `file ${j + 1}` };
+      if (n) {
+        const t1 = round2(d.igst + d.cgst + d.sgst + d.cess), t2 = round2(n.igst + n.cgst + n.sgst + n.cess);
+        if (Math.abs(t1 - t2) > 1 || Math.abs(d.taxable - n.taxable) > 1) out.push({ ...base, what: `Amended: GST ${rupees(t1)} → ${rupees(t2)}, taxable value ${rupees(d.taxable)} → ${rupees(n.taxable)}` });
+        else if (d.itcAvailable !== n.itcAvailable) out.push({ ...base, what: n.itcAvailable ? "ITC is now available" : "ITC is no longer available" });
+      } else if (a.period && a.period === b.period) out.push({ ...base, what: "Was in the earlier download, missing from the later one" });
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- matching
 export type MatchStatus = "matched" | "mismatch" | "missing" | "unchecked";
 export type Match = { status: MatchStatus; doc: TwoBDoc | null; how?: "exact" | "number" | "probable"; diffs: string[] };
@@ -101,7 +115,8 @@ export function reconcile(invoices: Invoice[], twob: TwoB | null, tolerance = 1)
   const last = (no: string) => invoiceKey(no).split("-").pop() ?? "";
   for (const inv of invoices) {
     const g = cleanGstin(inv.supplierGstin);
-    const pool = twob.docs.filter((d) => d.gstin === g && !used.has(d.id));
+    const kind = inv.docType === "credit" ? "CN" : inv.docType === "debit" ? "DN" : "INV";
+    const pool = twob.docs.filter((d) => d.gstin === g && d.kind === kind && !used.has(d.id));
     let doc = pool.find((d) => compactNo(d.number) === compactNo(inv.number)), how: Match["how"] = "exact";
     if (!doc) { doc = pool.find((d) => invoiceKey(d.number) === invoiceKey(inv.number)); how = "number"; }
     if (!doc) { doc = pool.find((d) => last(d.number) && last(d.number) === last(inv.number) && Math.abs(d.total - inv.total) <= tolerance); how = "probable"; }
@@ -124,17 +139,20 @@ export type Row = { inv: Invoice; findings: Finding[]; verdict: Verdict; match: 
 
 export function riskOf(inv: Invoice, findings: Finding[], match: Match): { atRisk: number; why: string } {
   const tax = round2(taxOf(inv));
-  if (!Number.isFinite(tax) || tax <= 0 || inv.reverseCharge) return { atRisk: 0, why: "" };
+  if (!Number.isFinite(tax) || tax <= 0 || inv.reverseCharge || inv.docType === "credit") return { atRisk: 0, why: "" };
   const critical = findings.find((f) => CRITICAL.has(f.code));
   if (critical) return { atRisk: tax, why: critical.title };
   if (match.status === "missing") return { atRisk: tax, why: "Not in GSTR-2B" };
+  let best = { atRisk: 0, why: "" };
   if (match.status === "mismatch" && match.doc) {
     if (!match.doc.itcAvailable) return { atRisk: tax, why: "GSTR-2B says ITC not available" };
     const twobTax = match.doc.igst + match.doc.cgst + match.doc.sgst + match.doc.cess;
     const extra = round2(tax - twobTax);
-    if (extra > 0.5) return { atRisk: extra, why: "GST on invoice is more than in GSTR-2B" };
+    if (extra > 0.5) best = { atRisk: extra, why: "GST on invoice is more than in GSTR-2B" };
   }
-  return { atRisk: 0, why: "" };
+  // findings that put part of the ITC at risk (e.g. the unpaid part after 180 days)
+  for (const f of findings) if (f.risk && f.risk > best.atRisk) best = { atRisk: round2(Math.min(f.risk, tax)), why: f.title };
+  return best;
 }
 
 // ---------------------------------------------------------------- messages to suppliers

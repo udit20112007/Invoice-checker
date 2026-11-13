@@ -4,7 +4,10 @@ import { checkInvoice, verdictOf, type Verdict } from "./checks.ts";
 import { cleanGstin } from "./gst.ts";
 import { round2, showDate } from "./parse.ts";
 import { reconcile, riskOf, supplierMessage, type Row, type TwoB, type TwoBDoc } from "./reconcile.ts";
-import { taxOf, type Invoice } from "./types.ts";
+import { signOf, taxOf, type Invoice } from "./types.ts";
+import type { GstinStatus } from "./gstinstatus.ts";
+import { paidFor, type PaidInfo, type Payment } from "./payments.ts";
+import { findPatterns } from "./patterns.ts";
 import { writeXlsx } from "./xlsx.ts";
 
 export type Supplier = { gstin: string; name: string; rows: Row[]; atRisk: number; message: string };
@@ -18,17 +21,29 @@ export type Analysis = {
 
 const worst = (a: Verdict, b: Verdict): Verdict => (a === "red" || b === "red" ? "red" : a === "amber" || b === "amber" ? "amber" : "green");
 
-export function analyse(invoices: Invoice[], twob: TwoB | null, opts: { ourGstin?: string; ourName?: string; today?: string } = {}): Analysis {
+export type AnalyseOptions = {
+  ourGstin?: string; ourName?: string; today?: string;
+  gstin?: Record<string, GstinStatus>;           // supplier registrations looked up
+  payments?: Payment[];                          // payments file
+  paidByHand?: Record<string, PaidInfo>;         // payments entered on the invoice screen
+};
+
+export function analyse(invoices: Invoice[], twob: TwoB | null, opts: AnalyseOptions = {}): Analysis {
   const ourGstin = cleanGstin(opts.ourGstin) || twob?.gstin || "";
   const rec = reconcile(invoices, twob);
+  const patterns = findPatterns(invoices);
+  const tracksPayments = !!(opts.payments?.length || Object.keys(opts.paidByHand ?? {}).length);
   const rows: Row[] = invoices.map((inv) => {
-    const findings = checkInvoice(inv, { ourGstin, all: invoices, today: opts.today });
+    const fromFile = opts.payments?.length ? paidFor(inv, opts.payments) : { paid: 0, lastDate: null };
+    const byHand = opts.paidByHand?.[inv.id];
+    const paid = tracksPayments ? (byHand ?? fromFile) : undefined;
+    const findings = [...checkInvoice(inv, { ourGstin, all: invoices, today: opts.today, gstin: opts.gstin, paid }), ...(patterns[inv.id] ?? [])];
     const match = rec.byInvoice[inv.id];
     const { atRisk, why } = riskOf(inv, findings, match);
     let verdict = verdictOf(findings);
-    if (match.status === "missing" || atRisk > 0) verdict = "red";
+    if ((match.status === "missing" && inv.docType !== "credit") || atRisk > 0) verdict = "red";
     else if (match.status === "mismatch") verdict = worst(verdict, "amber");
-    return { inv, findings, verdict, match, tax: round2(taxOf(inv)), atRisk, why };
+    return { inv, findings, verdict, match, tax: round2(taxOf(inv) * signOf(inv)), atRisk, why };
   });
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
@@ -67,10 +82,10 @@ export function reportXlsx(a: Analysis, period: string): Uint8Array {
       ["GST on these invoices", t.tax], ["ITC at risk", t.atRisk], ["ITC safe to claim", t.safe], [],
       ["Check the results before filing GSTR-3B."],
     ] },
-    { name: "Invoices", widths: [10, 30, 18, 18, 12, 14, 14, 14, 22, 14, 70, 20], money: [5, 6, 7, 9], rows: [
-      ["Result", "Supplier", "Supplier GSTIN", "Invoice no.", "Date", "Taxable value", "GST", "Total", "GSTR-2B", "ITC at risk", "Problems found", "File"],
+    { name: "Invoices", widths: [10, 30, 18, 18, 12, 14, 14, 14, 22, 14, 70, 14, 16, 20], money: [5, 6, 7, 9], rows: [
+      ["Result", "Supplier", "Supplier GSTIN", "Invoice no.", "Date", "Taxable value", "GST", "Total", "GSTR-2B", "ITC at risk", "Problems found", "Vehicle", "E-way bill", "File"],
       ...a.rows.map((r) => [VERDICT_LABEL[r.verdict], r.inv.supplierName, r.inv.supplierGstin, r.inv.number, showDate(r.inv.date), r.inv.taxable, r.tax, r.inv.total, MATCH_LABEL[r.match.status], r.atRisk || null,
-        [...r.findings.map((f) => f.title), ...r.match.diffs].join("; "), r.inv.fileName]),
+        [...r.findings.map((f) => f.title), ...r.match.diffs].join("; "), r.inv.vehicle, r.inv.ewayBill, r.inv.fileName]),
     ] },
     { name: "Not uploaded", widths: [30, 18, 18, 12, 14, 14], money: [4, 5], rows: [
       ["Supplier (in GSTR-2B)", "GSTIN", "Invoice no.", "Date", "Taxable value", "Total"],

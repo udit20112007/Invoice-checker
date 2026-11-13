@@ -2,12 +2,16 @@
 // image, then the invoice fields. Optionally asks the AI reader (this site's /api/extract) for a second opinion.
 import jsQR from "jsqr";
 import { extractFields } from "./extract";
-import { pdfText, type PdfDoc } from "./pdftext";
+import { groupPages, pdfText, type PdfDoc } from "./pdftext";
 import { decodeQr } from "./qr";
+import { verifyQr, type IrpKey } from "./qrsig";
 import { BASE, HAS_SERVER } from "./base";
 import { emptyInvoice, type Invoice } from "./types";
 
 export type Progress = (step: string) => void;
+
+let keys: Promise<IrpKey[]> | null = null;
+const irpKeys = () => (keys ??= fetch(`${BASE}/irp-keys.json`).then((r) => (r.ok ? r.json() : [])).then((j) => (Array.isArray(j) ? j : j.keys ?? [])).catch(() => []));
 
 let pdfjsLib: Promise<typeof import("pdfjs-dist")> | null = null;
 function pdfjs() {
@@ -18,7 +22,7 @@ function pdfjs() {
   return pdfjsLib;
 }
 
-type OcrWorker = { recognize(img: HTMLCanvasElement): Promise<{ data: { text: string } }>; terminate(): Promise<unknown> };
+type OcrWorker = { recognize(img: HTMLCanvasElement): Promise<{ data: { text: string; confidence: number } }>; terminate(): Promise<unknown> };
 let ocrWorker: Promise<OcrWorker> | null = null;
 function ocr() {
   ocrWorker ??= import("tesseract.js").then(({ createWorker }) => createWorker("eng", 1, {
@@ -46,8 +50,8 @@ function scanQr(canvas: HTMLCanvasElement): string | null {
   return null;
 }
 
-async function renderPage(doc: PdfDoc, scale: number) {
-  const page = await doc.getPage(1);
+async function renderPage(doc: PdfDoc, scale: number, n = 1) {
+  const page = await doc.getPage(n);
   const vp = page.getViewport({ scale });
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
@@ -69,41 +73,68 @@ async function imageCanvas(file: Blob, maxSide = 2400) {
 
 export type ReadResult = { invoice: Invoice; preview: string };
 
-export async function readInvoice(file: File, id: string, onStep: Progress = () => {}): Promise<ReadResult> {
+async function finish(text: string, base: Invoice, readBy: Invoice["readBy"], qr: string | null, confidence: number | undefined, onStep: Progress): Promise<Invoice> {
+  const invoice = extractFields(text, { ...base, readBy });
+  if (confidence !== undefined) invoice.ocrConfidence = Math.round(confidence);
+  invoice.qr = qr ? decodeQr(qr) : null;
+  if (invoice.qr?.kind === "einvoice") {
+    if (!invoice.irn) invoice.irn = invoice.qr.irn;
+    onStep("Checking the QR code's signature");
+    invoice.qr.signature = await verifyQr(invoice.qr, await irpKeys());
+  }
+  return invoice;
+}
+
+/** Reads one file. A PDF that holds several invoices (a scanned bundle) gives one result per invoice. */
+export async function readInvoices(file: File, id: string, onStep: Progress = () => {}): Promise<ReadResult[]> {
   const isPdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
-  const base = emptyInvoice(id, file.name, isPdf ? "pdf" : "image");
-  let text = "", qr: string | null = null, preview = "", readBy: Invoice["readBy"] = "text";
-  if (isPdf) {
-    onStep("Reading the PDF");
-    const lib = await pdfjs();
-    const r = await pdfText(lib as never, new Uint8Array(await file.arrayBuffer()), { standardFontDataUrl: `${BASE}/pdfjs/standard_fonts/` });
-    const big = await renderPage(r.doc, 3);
-    onStep("Looking for a QR code");
-    qr = scanQr(big);
-    text = r.text;
-    if (text.replace(/\s/g, "").length < 40) {   // a scanned PDF: no text layer, so read the picture
-      onStep("Reading the scan (OCR)");
-      text = (await (await ocr()).recognize(big)).data.text;
-      readBy = "ocr";
-    }
-    preview = big.toDataURL("image/jpeg", 0.8);
-    big.width = big.height = 0;
-    await r.close();
-  } else {
+  if (!isPdf) {
     onStep("Opening the photo");
     const canvas = await imageCanvas(file);
     onStep("Looking for a QR code");
-    qr = scanQr(canvas);
+    const qr = scanQr(canvas);
     onStep("Reading the photo (OCR)");
-    text = (await (await ocr()).recognize(canvas)).data.text;
-    readBy = "ocr";
-    preview = canvas.toDataURL("image/jpeg", 0.8);
+    const o = (await (await ocr()).recognize(canvas)).data;
+    const preview = canvas.toDataURL("image/jpeg", 0.8);
     canvas.width = canvas.height = 0;
+    return [{ invoice: await finish(o.text, emptyInvoice(id, file.name, "image"), "ocr", qr, o.confidence, onStep), preview }];
   }
-  const invoice = extractFields(text, { ...base, readBy });
-  invoice.qr = qr ? decodeQr(qr) : null;
-  if (invoice.qr?.kind === "einvoice" && !invoice.irn) invoice.irn = invoice.qr.irn;
-  return { invoice, preview };
+  onStep("Reading the PDF");
+  const lib = await pdfjs();
+  const r = await pdfText(lib as never, new Uint8Array(await file.arrayBuffer()), { standardFontDataUrl: `${BASE}/pdfjs/standard_fonts/` });
+  const count = r.pageTexts.length;
+  // scanned pages have no text layer: read each page's picture
+  const texts = [...r.pageTexts], conf: (number | undefined)[] = [], canvases: (HTMLCanvasElement | undefined)[] = [];
+  for (let n = 0; n < count; n++) {
+    if (texts[n].replace(/\s/g, "").length >= 40) continue;
+    onStep(count > 1 ? `Reading the scan (OCR), page ${n + 1} of ${count}` : "Reading the scan (OCR)");
+    canvases[n] = await renderPage(r.doc, 3, n + 1);
+    const o = (await (await ocr()).recognize(canvases[n]!)).data;
+    texts[n] = o.text; conf[n] = o.confidence;
+  }
+  const groups = groupPages(texts.map((t) => extractFields(t).number));
+  const out: ReadResult[] = [];
+  for (const [gi, pages] of groups.entries()) {
+    const first = pages[0];
+    const big = canvases[first] ?? await renderPage(r.doc, 3, first + 1);
+    onStep(groups.length > 1 ? `Invoice ${gi + 1} of ${groups.length}: looking for a QR code` : "Looking for a QR code");
+    const text = pages.map((n) => texts[n]).join("\n");
+    let qr = scanQr(big);
+    if (!qr && /\bIRN\b|e-?invoice/i.test(text)) {   // a dense e-invoice QR (long signature) may need a sharper picture
+      const sharp = await renderPage(r.doc, 5, first + 1);
+      qr = scanQr(sharp);
+      sharp.width = sharp.height = 0;
+    }
+    const preview = big.toDataURL("image/jpeg", 0.8);
+    if (!canvases[first]) big.width = big.height = 0;
+    const base = emptyInvoice(groups.length > 1 ? `${id}-${gi + 1}` : id, groups.length > 1 ? `${file.name} (page ${first + 1})` : file.name, "pdf");
+    const invoice = await finish(text, base, conf[first] !== undefined ? "ocr" : "text", qr, conf[first], onStep);
+    invoice.pdf = r.meta;
+    out.push({ invoice, preview });
+  }
+  for (const c of canvases) if (c) c.width = c.height = 0;
+  await r.close();
+  return out;
 }
 
 // ---------------------------------------------------------------- optional AI reader

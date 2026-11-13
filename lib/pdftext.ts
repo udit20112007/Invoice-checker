@@ -3,7 +3,9 @@
 
 type TextItem = { str: string; transform: number[]; width: number; height: number };
 type PdfjsLike = { getDocument(src: object): { promise: Promise<PdfDoc>; destroy(): Promise<void> } };
-export type PdfDoc = { numPages: number; getPage(n: number): Promise<PdfPage> };
+export type PdfDoc = { numPages: number; getPage(n: number): Promise<PdfPage>; getMetadata?(): Promise<{ info?: Record<string, unknown> }> };
+export type PdfInfo = { producer: string; creator: string; created: string | null; modified: string | null };
+const pdfDate = (v: unknown) => { const m = String(v ?? "").match(/(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?/); return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4] ?? "00"}:${m[5] ?? "00"}` : null; };
 export type PdfPage = { getTextContent(): Promise<{ items: unknown[] }>; getViewport(o: { scale: number }): { width: number; height: number }; render(o: object): { promise: Promise<void> } };
 
 export function linesFromItems(items: TextItem[]): string[] {
@@ -17,13 +19,31 @@ export function linesFromItems(items: TextItem[]): string[] {
   return rows.sort((a, b) => b[0].y - a[0].y).map((r) => r.sort((a, b) => a.x - b.x).map((p) => p.s.trim()).join(" ").replace(/\s+/g, " ").trim());
 }
 
-export async function pdfText(pdfjs: PdfjsLike, data: Uint8Array, opts: object = {}): Promise<{ text: string; pages: number; doc: PdfDoc; close: () => Promise<void> }> {
+export const MAX_PAGES = 40;
+
+/** A PDF may hold several invoices (a scanned bundle). Pages are grouped: a new invoice starts on each page
+ *  that shows an invoice number different from the one before; other pages continue the invoice. */
+export function groupPages(numbers: string[]): number[][] {
+  const groups: number[][] = [];
+  let current = "";
+  numbers.forEach((no, i) => {
+    const key = no.toUpperCase().replace(/[^0-9A-Z]/g, "");
+    if (!groups.length || (key && current && key !== current)) groups.push([i]);
+    else groups[groups.length - 1].push(i);
+    current = key || current;
+  });
+  return groups;
+}
+
+export async function pdfText(pdfjs: PdfjsLike, data: Uint8Array, opts: object = {}): Promise<{ text: string; pageTexts: string[]; pages: number; doc: PdfDoc; meta: PdfInfo; close: () => Promise<void> }> {
   const task = pdfjs.getDocument({ data, isEvalSupported: false, ...opts });
   const doc = await task.promise;
-  const lines: string[] = [];
-  for (let n = 1; n <= Math.min(doc.numPages, 3); n++) {
+  const pageTexts: string[] = [];
+  for (let n = 1; n <= Math.min(doc.numPages, MAX_PAGES); n++) {
     const page = await doc.getPage(n);
-    lines.push(...linesFromItems((await page.getTextContent()).items as TextItem[]));
+    pageTexts.push(linesFromItems((await page.getTextContent()).items as TextItem[]).join("\n"));
   }
-  return { text: lines.join("\n"), pages: doc.numPages, doc, close: () => task.destroy() };
+  const info = (await doc.getMetadata?.().catch(() => null))?.info ?? {};
+  const meta: PdfInfo = { producer: String(info.Producer ?? ""), creator: String(info.Creator ?? ""), created: pdfDate(info.CreationDate), modified: pdfDate(info.ModDate) };
+  return { text: pageTexts.slice(0, 3).join("\n"), pageTexts, meta, pages: doc.numPages, doc, close: () => task.destroy() };
 }

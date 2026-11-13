@@ -1,0 +1,217 @@
+{
+ "note": "Demo data for the fictional suppliers in the demo pile.",
+ "records": {
+  "27AAJFG3150M1Z7": {
+   "sts": "Active",
+   "lgnm": "GANESH LIGHTING CO",
+   "tradeNam": "GANESH LIGHTING CO",
+   "rgdt": "12/07/2018",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "29AADCK7712P1ZX": {
+   "sts": "Active",
+   "lgnm": "KAVERI COMPONENTS PRIVATE LIMITED",
+   "tradeNam": "KAVERI COMPONENTS PVT LTD",
+   "rgdt": "01/07/2017",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "27AAPFO2218C1ZF": {
+   "sts": "Active",
+   "lgnm": "OM SAI CABLES",
+   "tradeNam": "OM SAI CABLES",
+   "rgdt": "19/03/2019",
+   "cxdt": "",
+   "dty": "Regular",
+   "EFiledlist": [
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "072026",
+     "dof": "10-08-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "072026",
+     "dof": "28-08-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "082026",
+     "dof": "11-09-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "082026",
+     "dof": "02-10-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "092026",
+     "dof": "15-10-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "092026",
+     "dof": "20-10-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    }
+   ]
+  },
+  "27AEZPM6630B1Z8": {
+   "sts": "Active",
+   "lgnm": "MEHTA SWITCHGEAR",
+   "tradeNam": "MEHTA SWITCHGEAR",
+   "rgdt": "05/11/2020",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "24AABFU5521J1ZA": {
+   "sts": "Active",
+   "lgnm": "VARDHMAN POLYMERS",
+   "tradeNam": "VARDHMAN POLYMERS",
+   "rgdt": "22/08/2017",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "33AAACB9081Q1Z8": {
+   "sts": "Active",
+   "lgnm": "BHARAT ELECTRICALS LIMITED",
+   "tradeNam": "BHARAT ELECTRICALS LTD",
+   "rgdt": "01/07/2017",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "27AAZFS3390K1Z9": {
+   "sts": "Cancelled",
+   "lgnm": "SUNRISE WIRES",
+   "tradeNam": "SUNRISE WIRES",
+   "rgdt": "14/02/2021",
+   "cxdt": "30/09/2026",
+   "dty": "Regular"
+  },
+  "36AAGFD7754P1ZQ": {
+   "sts": "Active",
+   "lgnm": "DECCAN FASTENERS",
+   "tradeNam": "DECCAN FASTENERS",
+   "rgdt": "09/06/2022",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "27AEHFS6102L1ZT": {
+   "sts": "Active",
+   "lgnm": "SHIV SHAKTI ENTERPRISES",
+   "tradeNam": "SHIV SHAKTI ENTERPRISES",
+   "rgdt": "17/01/2024",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "27ATRPR2846D1ZA": {
+   "sts": "Active",
+   "lgnm": "ROYAL CABLES",
+   "tradeNam": "ROYAL CABLES",
+   "rgdt": "02/10/2026",
+   "cxdt": "",
+   "dty": "Regular"
+  },
+  "27AKHPK7350F1Z4": {
+   "sts": "Active",
+   "lgnm": "KUMAR AGENCIES",
+   "tradeNam": "KUMAR AGENCIES",
+   "rgdt": "11/04/2019",
+   "cxdt": "",
+   "dty": "Regular",
+   "EFiledlist": [
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "052026",
+     "dof": "10-06-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "052026",
+     "dof": "19-06-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "062026",
+     "dof": "10-07-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "062026",
+     "dof": "19-07-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "072026",
+     "dof": "10-08-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "072026",
+     "dof": "19-08-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "082026",
+     "dof": "10-09-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "082026",
+     "dof": "19-09-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR1",
+     "ret_prd": "092026",
+     "dof": "10-10-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    },
+    {
+     "rtntype": "GSTR3B",
+     "ret_prd": "092026",
+     "dof": "19-10-2026",
+     "status": "Filed",
+     "mof": "ONLINE"
+    }
+   ]
+  },
+  "27AALFA4417R1ZX": {
+   "sts": "Active",
+   "lgnm": "ANNAPURNA CATERERS",
+   "tradeNam": "ANNAPURNA CATERERS",
+   "rgdt": "03/08/2020",
+   "cxdt": "",
+   "dty": "Regular"
+  }
+ }
+}

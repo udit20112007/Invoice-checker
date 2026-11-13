@@ -15,7 +15,7 @@
   },
   {
    "file": "invoice-03.pdf",
-   "note": "Supplier GSTIN fails the check character"
+   "note": "Supplier GSTIN fails the check character, and a made-up vehicle number"
   },
   {
    "file": "invoice-04.pdf",
@@ -44,7 +44,34 @@
   {
    "file": "invoice-10-photo.png",
    "note": "Clean, as a phone photo"
+  },
+  {
+   "file": "invoice-11.pdf",
+   "note": "Split bill 1 of 2: just under ₹50,000"
+  },
+  {
+   "file": "invoice-12.pdf",
+   "note": "Split bill 2 of 2: same day, same lorry"
+  },
+  {
+   "file": "invoice-13.pdf",
+   "note": "Forged e-invoice QR; number follows Shiv Shakti's bill; new GSTIN; same bank account as Shiv Shakti"
+  },
+  {
+   "file": "invoice-14.pdf",
+   "note": "Credit note against invoice 2: reduces ITC"
+  },
+  {
+   "file": "invoice-15.pdf",
+   "note": "Correct invoice, but ITC on food and catering is blocked"
+  },
+  {
+   "file": "invoice-16-bundle.pdf",
+   "note": "Clean; page 1 of a two-invoice PDF / Clean; page 2 of a two-invoice PDF"
   }
  ],
- "twob": "GSTR-2B-Oct-2026.json"
+ "twob": "GSTR-2B-Oct-2026.json",
+ "register": "purchase-register.xlsx",
+ "payments": "payments.csv",
+ "gstinStatus": "gstin-status.json"
 }
