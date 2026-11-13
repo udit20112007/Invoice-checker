@@ -4,6 +4,7 @@ import jsQR from "jsqr";
 import { extractFields } from "./extract";
 import { pdfText, type PdfDoc } from "./pdftext";
 import { decodeQr } from "./qr";
+import { BASE, HAS_SERVER } from "./base";
 import { emptyInvoice, type Invoice } from "./types";
 
 export type Progress = (step: string) => void;
@@ -11,7 +12,7 @@ export type Progress = (step: string) => void;
 let pdfjsLib: Promise<typeof import("pdfjs-dist")> | null = null;
 function pdfjs() {
   pdfjsLib ??= import("pdfjs-dist/legacy/build/pdf.mjs").then((m) => {
-    m.GlobalWorkerOptions.workerSrc = "/pdfjs/worker.mjs";
+    m.GlobalWorkerOptions.workerSrc = `${BASE}/pdfjs/worker.mjs`;
     return m as unknown as typeof import("pdfjs-dist");
   });
   return pdfjsLib;
@@ -21,7 +22,7 @@ type OcrWorker = { recognize(img: HTMLCanvasElement): Promise<{ data: { text: st
 let ocrWorker: Promise<OcrWorker> | null = null;
 function ocr() {
   ocrWorker ??= import("tesseract.js").then(({ createWorker }) => createWorker("eng", 1, {
-    workerPath: "/ocr/worker.min.js", corePath: "/ocr/", langPath: "/ocr/lang", gzip: true, workerBlobURL: false,
+    workerPath: `${BASE}/ocr/worker.min.js`, corePath: `${BASE}/ocr/`, langPath: `${BASE}/ocr/lang`, gzip: true, workerBlobURL: false,
   }) as unknown as Promise<OcrWorker>);
   return ocrWorker;
 }
@@ -75,7 +76,7 @@ export async function readInvoice(file: File, id: string, onStep: Progress = () 
   if (isPdf) {
     onStep("Reading the PDF");
     const lib = await pdfjs();
-    const r = await pdfText(lib as never, new Uint8Array(await file.arrayBuffer()), { standardFontDataUrl: "/pdfjs/standard_fonts/" });
+    const r = await pdfText(lib as never, new Uint8Array(await file.arrayBuffer()), { standardFontDataUrl: `${BASE}/pdfjs/standard_fonts/` });
     const big = await renderPage(r.doc, 3);
     onStep("Looking for a QR code");
     qr = scanQr(big);
@@ -107,13 +108,14 @@ export async function readInvoice(file: File, id: string, onStep: Progress = () 
 
 // ---------------------------------------------------------------- optional AI reader
 export async function aiAvailable(): Promise<boolean> {
-  try { const r = await fetch("/api/extract", { cache: "no-store" }); return r.ok && (await r.json()).enabled === true; } catch { return false; }
+  if (!HAS_SERVER) return false;
+  try { const r = await fetch(`${BASE}/api/extract`, { cache: "no-store" }); return r.ok && (await r.json()).enabled === true; } catch { return false; }
 }
 
 /** Asks the AI reader for the fields and fills in what the rule-based reader missed or got wrong. */
 export async function aiRead(inv: Invoice, preview: string): Promise<Invoice> {
   const body = inv.source === "image" ? { image: preview } : { text: inv.text.slice(0, 20000) };
-  const r = await fetch("/api/extract", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(`${BASE}/api/extract`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.invoice) throw new Error(j.error || "The AI reader didn't answer.");
   const a = j.invoice as Partial<Invoice>;

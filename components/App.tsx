@@ -7,6 +7,7 @@ import { amount, date as parseDate, rupees, showDate } from "../lib/parse";
 import { read2bFile, type TwoB } from "../lib/reconcile";
 import type { Row } from "../lib/reconcile";
 import { aiAvailable, aiRead, readInvoice } from "../lib/reader";
+import { BASE } from "../lib/base";
 import type { Invoice } from "../lib/types";
 
 type Item = { id: string; file: File; status: "waiting" | "reading" | "done" | "error"; step: string; invoice?: Invoice; preview?: string; error?: string };
@@ -84,9 +85,9 @@ export default function App() {
     } catch (e) { setTwobError(e instanceof Error ? e.message : "Couldn't read this file."); }
   };
   const loadDemo = async () => {
-    const m = await (await fetch("/demo/manifest.json")).json() as { buyer: { name: string; gstin: string }; files: { file: string }[]; twob: string };
+    const m = await (await fetch(`${BASE}/demo/manifest.json`)).json() as { buyer: { name: string; gstin: string }; files: { file: string }[]; twob: string };
     setOurName(m.buyer.name); setOurGstin(m.buyer.gstin);
-    const blob = async (name: string, type: string) => new File([await (await fetch(`/demo/${name}`)).blob()], name, { type });
+    const blob = async (name: string, type: string) => new File([await (await fetch(`${BASE}/demo/${name}`)).blob()], name, { type });
     await add2b([await blob(m.twob, "application/json")]);
     addInvoices(await Promise.all(m.files.map((f) => blob(f.file, f.file.endsWith(".png") ? "image/png" : "application/pdf"))));
   };

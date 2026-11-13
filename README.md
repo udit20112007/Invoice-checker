@@ -57,7 +57,19 @@ Needs Node 22. To switch on AI reading, set `ANTHROPIC_API_KEY` (see `.env.examp
 
 ## Deploy
 
-Push to a public GitHub repository and import it in Vercel. No settings are needed for the core app.
+### GitHub Pages (free, from the repository)
+
+The workflow in `.github/workflows/deploy.yml` tests the app on every push and pull request, and publishes it to GitHub Pages from `main`.
+
+1. Create a **public** repository and upload these files (keep the `.github` folder; on GitHub's web upload, drag the whole unzipped folder so hidden folders come along).
+2. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Push to `main` (or open **Actions → Test and deploy → Run workflow**). In about 3 minutes the site is live at `https://<your-username>.github.io/<repo-name>/`.
+
+On GitHub Pages the app is static files only: everything works except the optional AI reader, which needs a server. The security policy is set with a `<meta>` tag there.
+
+### Vercel (adds the optional AI reader)
+
+Import the same repository in Vercel. No settings are needed; add `ANTHROPIC_API_KEY` under Settings → Environment Variables only if you want AI reading.
 
 ## Demo script (3 minutes)
 
