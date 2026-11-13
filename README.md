@@ -64,6 +64,7 @@ Click **Try the demo pile** to see it work on 10 sample invoices with planted pr
 - **IMS action** for every GSTR-2B entry (accept or keep pending), and a **draft reply** to an ITC mismatch notice (DRC-01C, ASMT-10).
 - **Save your work** to a password-locked file (AES-256-GCM, `lib/savefile.ts`) and open it next month.
 - **Guided tour** of the demo pile, **Listen to the summary** (English or Hindi, using the browser's voice), and **Take a photo** on phones.
+- **Explore** (`lib/features.ts`, `components/Explore.tsx`): a searchable list of everything the site does. *Show me* scrolls to the feature and rings it, or opens the first invoice that shows that check. Features that need data can be shown on the demo pile, or on your own files once they're loaded.
 - **Clients**: accountants can save each client's totals in the browser and download them as Excel.
 
 The interface is in English, Hindi, Marathi, Gujarati and Tamil (`lib/i18n.ts`).

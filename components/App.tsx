@@ -23,6 +23,8 @@ import { writeXlsx } from "../lib/xlsx";
 import { ageing, imsForExtra, imsForRow, noticeReply, payLines, spoken } from "../lib/insights";
 import { lock, unlock } from "../lib/savefile";
 import Insights from "./Insights";
+import Explore from "./Explore";
+import type { Feature } from "../lib/features";
 import type { Invoice } from "../lib/types";
 
 type Item = { id: string; file: File; status: "waiting" | "reading" | "done" | "error"; step: string; invoice?: Invoice; preview?: string; error?: string };
@@ -95,6 +97,9 @@ export default function App() {
   const [reply, setReply] = useState(false);
   const [tour, setTour] = useState(-1);
   const [isDemo, setIsDemo] = useState(false);
+  const [explore, setExplore] = useState(false);
+  const [spot, setSpot] = useState<{ f: Feature; note: string } | null>(null);      // the feature Explore is showing
+  const [pending, setPending] = useState<Feature | "tour" | null>(null);           // what to show once the demo has loaded
   const [device, setDevice] = useState({ touch: false, speech: false });
   const [password, setPassword] = useState("");
   const [saveNote, setSaveNote] = useState("");
@@ -221,7 +226,7 @@ export default function App() {
     addInvoices(await Promise.all(m.files.map((f) => blob(f.file, f.file.endsWith(".png") ? "image/png" : "application/pdf"))));
     setIsDemo(true);
   };
-  const reset = () => { setItems([]); setTwobs([]); setBank([]); setEdits([]); setMsme([]); setIsDemo(false); setTour(-1); setReply(false); setTwobName(""); setRegister([]); setRegisterName(""); setPayments([]); setPaymentsName(""); setPaidByHand({}); setGstinInfo({}); asked.current.clear(); setOpen(null); setError(""); };
+  const reset = () => { setItems([]); setTwobs([]); setBank([]); setEdits([]); setMsme([]); setIsDemo(false); setTour(-1); setReply(false); setSpot(null); setPending(null); setTwobName(""); setRegister([]); setRegisterName(""); setPayments([]); setPaymentsName(""); setPaidByHand({}); setGstinInfo({}); asked.current.clear(); setOpen(null); setError(""); };
 
   const read = items.filter((x) => x.invoice).map((x) => x.invoice!);
   // register rows that are already uploaded as invoices are left out, so nothing counts twice
@@ -302,8 +307,29 @@ export default function App() {
     u.lang = lang === "hi" ? "hi-IN" : "en-IN";
     speechSynthesis.speak(u);
   };
+  // Explore: go to a feature. A check is shown on the first invoice that has it.
+  const showFeature = (f: Feature) => {
+    setExplore(false); setTour(-1);
+    let note = "";
+    if (f.tab) setTab(f.tab);
+    if (f.act === "reply") setReply(true);
+    let id: string | null = null;
+    if (f.codes) {
+      const row = analysis?.rows.find((r) => r.findings.some((x) => f.codes!.includes(x.code)));
+      if (row) id = row.inv.id; else note = "None of the invoices loaded shows this problem.";
+    }
+    setOpen(id);
+    setSpot({ f, note });
+  };
+  const demoFor = (f: Feature | null) => { setExplore(false); setSpot(null); if (f) setPending(f); if (!items.length && !register.length) loadDemo(); };
+  const startTour = () => { setExplore(false); setSpot(null); if (isDemo) goTour(0); else { setPending("tour"); if (!items.length && !register.length) loadDemo(); } };
+  useEffect(() => {
+    if (!pending || busy || !items.length || !analysis) return;
+    const p = pending; setPending(null);
+    if (p === "tour") goTour(0); else showFeature(p);
+  }, [pending, busy, items.length, analysis]); // eslint-disable-line react-hooks/exhaustive-deps
   const goTour = (i: number) => {
-    setTour(i);
+    setTour(i); setSpot(null);
     const st = TOUR[i];
     if (!st) { setOpen(null); return; }
     if (st.tab) setTab(st.tab);
@@ -311,16 +337,17 @@ export default function App() {
   };
   // bring the part of the page the step talks about into view, and ring it
   useEffect(() => {
-    const sel = TOUR[tour]?.show;
+    const sel = TOUR[tour]?.show ?? (spot ? (open && spot.f.codes ? spot.f.codes.map((c) => `.findings li[data-code="${c}"]`).join(",") : spot.f.show) : undefined);
     if (!sel) return;
     let el: Element | null = null;
     const timer = setTimeout(() => {
       el = document.querySelector(sel);
+      if (!el && tour < 0 && spot && !spot.note) setSpot({ ...spot, note: "This one isn't offered on this device or browser, or it's switched off on this site." });
       el?.classList.add("tour-focus");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
     return () => { clearTimeout(timer); el?.classList.remove("tour-focus"); };
-  }, [tour, tab]);
+  }, [tour, tab, spot, open]);
   useEffect(() => {
     if (!pack) return;
     document.documentElement.classList.add("printing");
@@ -336,6 +363,7 @@ export default function App() {
         <div className="wrap top-row">
           <div className="brand"><span className="mark" aria-hidden="true">✓</span>Invoice Checker</div>
           <span className="muted small">{t.tagline}</span>
+          <button className="btn explore-btn" type="button" onClick={() => setExplore(true)}>Explore</button>
           <select className="lang" aria-label="Language / भाषा" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
             {LANGS.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
           </select>
@@ -348,6 +376,7 @@ export default function App() {
           <ol className="steps">
             {[t.step1, t.step2, t.step3].map((s, i) => <li key={i} dangerouslySetInnerHTML={{ __html: s }} />)}
           </ol>
+          <p className="hero-explore"><button className="btn" type="button" onClick={() => setExplore(true)}>Explore everything it can do</button></p>
         </section>
 
         <section className="panel inputs">
@@ -377,9 +406,9 @@ export default function App() {
           <div className="actions">
             {!items.length && !register.length && <button className="btn primary" type="button" onClick={loadDemo}>{t.demo}</button>}
             {(items.length > 0 || register.length > 0) && <button className="btn ghost" type="button" onClick={reset}>{t.again}</button>}
-            {device.touch && <label className="btn camera">Take a photo<input type="file" accept="image/*" capture="environment" onChange={(e) => { if (e.target.files?.length) addInvoices([...e.target.files]); e.target.value = ""; }} /></label>}
-            {folderOk && <button className="btn" type="button" onClick={openFolder}>{t.folder}</button>}
-            <button className="btn" type="button" onClick={reminder}>{t.remind}</button>
+            {device.touch && <label className="btn camera" data-f="camera">Take a photo<input type="file" accept="image/*" capture="environment" onChange={(e) => { if (e.target.files?.length) addInvoices([...e.target.files]); e.target.value = ""; }} /></label>}
+            {folderOk && <button className="btn" type="button" data-f="folder" onClick={openFolder}>{t.folder}</button>}
+            <button className="btn" type="button" data-f="remind" onClick={reminder}>{t.remind}</button>
             <span className="muted small">{t.privacy}</span>
           </div>
           <details className="savebox">
@@ -410,7 +439,7 @@ export default function App() {
 
             {(isDemo || device.speech) && <div className="actions">
               {isDemo && !busy && <button className="btn primary" type="button" onClick={() => goTour(0)}>Guided tour (2 minutes)</button>}
-              {device.speech && <button className="btn" type="button" disabled={busy} onClick={speak}>Listen to the summary</button>}
+              {device.speech && <button className="btn" type="button" data-f="listen" disabled={busy} onClick={speak}>Listen to the summary</button>}
             </div>}
 
             <div className="bar">
@@ -572,6 +601,21 @@ export default function App() {
 
         <VehicleTool t={t} />
 
+        {explore && <Explore hasData={invoices.length > 0} canTour={isDemo || !invoices.length} busy={busy} onShow={showFeature} onDemo={demoFor} onTour={startTour} onClose={() => setExplore(false)} />}
+        {pending && <aside className="tour" role="status"><b>Loading the demo data…</b><p>{pending === "tour" ? "The tour starts as soon as the invoices are read." : `“${pending.name}” opens as soon as the invoices are read.`}</p></aside>}
+        {spot && tour < 0 && !explore && (
+          <aside className="tour" role="dialog" aria-label={spot.f.name}>
+            <div className="muted small">{spot.f.group}</div>
+            <b>{spot.f.name}</b>
+            <p>{spot.f.what}</p>
+            {spot.note && <p className="tour-note">{spot.note}</p>}
+            {!spot.note && !open && spot.f.show && <p className="tour-note">It&apos;s ringed in orange on the page.</p>}
+            <div className="actions">
+              <button className="btn primary" type="button" onClick={() => { setOpen(null); setExplore(true); }}>Back to Explore</button>
+              <button className="btn ghost" type="button" onClick={() => setSpot(null)}>Close</button>
+            </div>
+          </aside>
+        )}
         {tour >= 0 && TOUR[tour] && (
           <aside className="tour" role="dialog" aria-label="Guided tour">
             <div className="muted small">Step {tour + 1} of {TOUR.length}</div>
@@ -731,9 +775,9 @@ function Detail({ row, preview, lang, t, reg, onClose, onEdit }: { row: Row; pre
             <h3>{t.found} {t.english && <span className="muted small">{t.english}</span>}</h3>
             {row.findings.length === 0 && row.match.status !== "missing" && <p className="ok-text">{t.noProblems}. The invoice is complete and the numbers add up.</p>}
             <ul className="findings">
-              {row.match.status === "missing" && <li className="red"><b>{t.mMissing}</b><span>The supplier hasn&apos;t reported this invoice in their GSTR-1, so you can&apos;t claim its ITC yet. Ask them to file it.</span><small>Section 16(2)(aa), CGST Act</small></li>}
+              {row.match.status === "missing" && <li className="red" data-code="not-in-2b"><b>{t.mMissing}</b><span>The supplier hasn&apos;t reported this invoice in their GSTR-1, so you can&apos;t claim its ITC yet. Ask them to file it.</span><small>Section 16(2)(aa), CGST Act</small></li>}
               {row.match.status === "mismatch" && <li className="amber"><b>{t.differs2b}</b><span>{row.match.diffs.join("; ")}</span></li>}
-              {row.findings.map((f, i) => <li key={i} className={f.level}><b>{findingTitle(lang, f.code, f.title)}</b><span>{f.detail}</span>{f.rule && <small>{f.rule}</small>}</li>)}
+              {row.findings.map((f, i) => <li key={i} className={f.level} data-code={f.code}><b>{findingTitle(lang, f.code, f.title)}</b><span>{f.detail}</span>{f.rule && <small>{f.rule}</small>}</li>)}
             </ul>
             {q?.kind === "einvoice" && (
               <>
