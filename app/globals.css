@@ -220,3 +220,4 @@ textarea.tall { min-height: 320px; }
 .tour .muted { color: #b8c4dc; } .tour p { margin: 6px 0 12px; font-size: 14px; } .tour .btn.ghost { color: #fff; border-color: #3a4f78; background: transparent; }
 .printing .tour { display: none; }
 .grid.compact { min-width: 0; width: 100%; }
+.tour-focus { outline: 3px solid #f5a623; outline-offset: 6px; border-radius: 12px; transition: outline-color .2s; scroll-margin: 90px; }

@@ -13,8 +13,28 @@ export type Progress = (step: string) => void;
 let keys: Promise<IrpKey[]> | null = null;
 const irpKeys = () => (keys ??= fetch(`${BASE}/irp-keys.json`).then((r) => (r.ok ? r.json() : [])).then((j) => (Array.isArray(j) ? j : j.keys ?? [])).catch(() => []));
 
+// Safari can't step through a ReadableStream with `for await`, which the PDF reader does when it reads a
+// page's text. Without this, every PDF fails there with "undefined is not a function".
+function patchStreams() {
+  if (typeof Promise.withResolvers !== "function") {   // Safari before 17.4
+    Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value<T>() { let resolve!: (v: T) => void, reject!: (e?: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; } });
+  }
+  if (typeof ReadableStream === "undefined" || (ReadableStream.prototype as unknown as Record<symbol, unknown>)[Symbol.asyncIterator]) return;
+  const values = function (this: ReadableStream, { preventCancel = false } = {}) {
+    const reader = this.getReader();
+    return {
+      async next() { const r = await reader.read(); if (r.done) reader.releaseLock(); return r; },
+      async return(value?: unknown) { if (!preventCancel) { const p = reader.cancel(value); reader.releaseLock(); await p; } else reader.releaseLock(); return { done: true, value }; },
+      [Symbol.asyncIterator]() { return this; },
+    };
+  };
+  Object.defineProperty(ReadableStream.prototype, "values", { value: values, writable: true, configurable: true });
+  Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, { value: values, writable: true, configurable: true });
+}
+
 let pdfjsLib: Promise<typeof import("pdfjs-dist")> | null = null;
 function pdfjs() {
+  patchStreams();
   pdfjsLib ??= import("pdfjs-dist/legacy/build/pdf.mjs").then((m) => {
     m.GlobalWorkerOptions.workerSrc = `${BASE}/pdfjs/worker.mjs`;
     return m as unknown as typeof import("pdfjs-dist");

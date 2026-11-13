@@ -30,15 +30,17 @@ type Tab = "invoices" | "gstr2b" | "suppliers" | "scores" | "insights" | "paymen
 type Saved = { v: 1; ourGstin: string; ourName: string; items: { id: string; name: string; invoice: Invoice; preview: string }[]; register: Invoice[]; twobs: TwoB[]; payments: Payment[]; bank: BankEntry[]; paidByHand: Record<string, PaidInfo>; gstinInfo: Record<string, GstinStatus>; edits: EditLog[]; msme: string[] };
 // numbers that weren't read are NaN in the app and null in a saved file
 const reviveInvoice = (i: Invoice): Invoice => ({ ...i, taxable: i.taxable ?? NaN, total: i.total ?? NaN });
-type TourStep = { title: string; text: string; tab?: Tab; open?: string };
+type TourStep = { title: string; text: string; tab?: Tab; open?: string; show?: string };   // show: the part of the page the step is about
 const TOUR: TourStep[] = [
-  { title: "18 bills, checked in seconds", text: "Every bill was read in this browser, checked against the GST rules and matched with GSTR-2B. The red box is the input tax credit a tax officer could take back.", tab: "invoices" },
+  { title: "18 bills, checked in seconds", text: "Every bill was read in this browser, checked against the GST rules and matched with GSTR-2B. The red box is the input tax credit a tax officer could take back.", tab: "invoices", show: ".kpis" },
   { title: "An edited invoice", text: "The QR code was signed by the government portal for ₹1,18,000. The printed total says ₹1,81,000, and the PDF was changed in an editing tool three days later.", tab: "invoices", open: "invoice-07.pdf" },
   { title: "A forged invoice", text: "This QR code wasn't signed by the portal at all. The supplier registered this month, and shares a bank account with another supplier.", tab: "invoices", open: "invoice-13.pdf" },
-  { title: "Who is linked to whom", text: "Royal Cables and Shiv Shakti Enterprises share a bank account, and their invoice numbers run on from each other: one bill book, two firms.", tab: "insights" },
-  { title: "Pay late, lose the credit", text: "Kumar Agencies hasn't been paid in over 180 days, so ₹7,200 of ITC has to be paid back. For risky bills the advice is to pay the goods and hold the GST.", tab: "payments" },
-  { title: "Ready for the return", text: "A draft of GSTR-3B Table 4: what to claim, what to reverse, and what to hold until the supplier files.", tab: "gstr3b" },
-  { title: "Chase the suppliers", text: "A message for each supplier is written for you: copy it, or send it on WhatsApp. The audit pack and Excel report keep the proof.", tab: "suppliers" },
+  { title: "Who is linked to whom", text: "Royal Cables and Shiv Shakti Enterprises share a bank account, and their invoice numbers run on from each other: one bill book, two firms.", tab: "insights", show: ".insights article" },
+  { title: "Every supplier gets a score", text: "Royal Cables scores 0 and Deccan Fasteners 100. The reasons are listed, so you know who to stop buying from and who is safe.", tab: "scores", show: ".results .table-wrap" },
+  { title: "A correct bill you still can't claim", text: "Staff lunch catering: the invoice is fine, but the law blocks credit on food. ₹400 goes to the blocked line of the return.", tab: "invoices", open: "invoice-15.pdf" },
+  { title: "Pay late, lose the credit", text: "Kumar Agencies hasn't been paid in over 180 days, so ₹7,200 of ITC has to be paid back. For risky bills the advice is to pay the goods and hold the GST.", tab: "payments", show: ".ageing" },
+  { title: "Ready for the return", text: "A draft of GSTR-3B Table 4: what to claim, what to reverse, and what to hold until the supplier files.", tab: "gstr3b", show: ".results .table-wrap" },
+  { title: "Chase the suppliers", text: "A message for each supplier is written for you: copy it, or send it on WhatsApp. The audit pack and Excel report keep the proof.", tab: "suppliers", show: ".suppliers .supplier" },
 ];
 type EditLog = { id: string; file: string; field: string; from: string; to: string; at: string };
 type Client = { name: string; gstin: string; period: string; savedOn: string; invoices: number; problems: number; tax: number; atRisk: number; safe: number };
@@ -146,7 +148,10 @@ export default function App() {
           // a PDF with several invoices in it becomes several rows
           setItems((l) => l.flatMap((x) => (x.id === it.id ? done : [x])));
         } catch (e) {
-          update(it.id, { status: "error", step: "", error: e instanceof Error ? e.message : "Couldn't read this file." });
+          // say what to do, not what broke inside; the technical message goes to the console for debugging
+          console.warn(`Couldn't read ${it.file.name}:`, e);
+          const m = e instanceof Error ? e.message : "";
+          update(it.id, { status: "error", step: "", error: /password/i.test(m) ? "This PDF is locked with a password. Remove the password and add it again." : /invalid pdf|missing pdf|unexpected/i.test(m) ? "This file is damaged or isn't a real PDF." : "Couldn't read this file. Add it again, or try a clearer copy." });
         }
       });
     }
@@ -304,6 +309,18 @@ export default function App() {
     if (st.tab) setTab(st.tab);
     setOpen(st.open ? items.find((x) => x.file.name === st.open)?.id ?? null : null);
   };
+  // bring the part of the page the step talks about into view, and ring it
+  useEffect(() => {
+    const sel = TOUR[tour]?.show;
+    if (!sel) return;
+    let el: Element | null = null;
+    const timer = setTimeout(() => {
+      el = document.querySelector(sel);
+      el?.classList.add("tour-focus");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => { clearTimeout(timer); el?.classList.remove("tour-focus"); };
+  }, [tour, tab]);
   useEffect(() => {
     if (!pack) return;
     document.documentElement.classList.add("printing");
