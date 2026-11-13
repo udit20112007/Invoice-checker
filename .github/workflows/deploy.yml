@@ -1,0 +1,68 @@
+# Tests and builds Invoice Checker on every push and pull request, and publishes it to GitHub Pages
+# from the main branch. One-time setup: repository Settings > Pages > Source: "GitHub Actions".
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build for a server (checks the Vercel build too)
+        run: npm run build
+
+  build-pages:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Remove the server-only AI route (GitHub Pages serves plain files)
+        run: rm -rf app/api
+      - name: Build static site
+        env:
+          NEXT_PUBLIC_STATIC_EXPORT: "true"
+          # "<user>.github.io" repositories are served at the root; every other repository under /<repo>
+          NEXT_PUBLIC_BASE_PATH: ${{ endsWith(github.event.repository.name, '.github.io') && '' || format('/{0}', github.event.repository.name) }}
+        run: npm run build
+      - run: touch out/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build-pages
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
