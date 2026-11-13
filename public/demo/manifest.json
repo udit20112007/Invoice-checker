@@ -1,0 +1,50 @@
+{
+ "buyer": {
+  "name": "Sharma Electronics Pvt Ltd",
+  "address": "14 Lamington Road, Mumbai 400007",
+  "gstin": "27AAHCS4821K1Z3"
+ },
+ "files": [
+  {
+   "file": "invoice-01.pdf",
+   "note": "Clean"
+  },
+  {
+   "file": "invoice-02.pdf",
+   "note": "Clean e-invoice with a valid QR"
+  },
+  {
+   "file": "invoice-03.pdf",
+   "note": "Supplier GSTIN fails the check character"
+  },
+  {
+   "file": "invoice-04.pdf",
+   "note": "CGST and SGST charged at the wrong amount"
+  },
+  {
+   "file": "invoice-05.pdf",
+   "note": "IGST charged on a same-state sale"
+  },
+  {
+   "file": "invoice-06.pdf",
+   "note": "Old 12% rate after GST 2.0"
+  },
+  {
+   "file": "invoice-07.pdf",
+   "note": "Printed total edited: QR says ₹1,18,000"
+  },
+  {
+   "file": "invoice-08.pdf",
+   "note": "Duplicate of invoice 1"
+  },
+  {
+   "file": "invoice-09.pdf",
+   "note": "Not filed by the supplier, and no HSN code"
+  },
+  {
+   "file": "invoice-10-photo.png",
+   "note": "Clean, as a phone photo"
+  }
+ ],
+ "twob": "GSTR-2B-Oct-2026.json"
+}

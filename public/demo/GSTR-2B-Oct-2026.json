@@ -1,0 +1,221 @@
+{
+ "chksum": "demo",
+ "data": {
+  "gstin": "27AAHCS4821K1Z3",
+  "rtnprd": "102026",
+  "version": "1.0",
+  "gendt": "14-11-2026",
+  "docdata": {
+   "b2b": [
+    {
+     "ctin": "27AAJFG3150M1Z7",
+     "trdnm": "GANESH LIGHTING CO",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "GLC/2026/0412",
+       "dt": "03-10-2026",
+       "val": 36108,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 30600,
+       "igst": 0,
+       "cgst": 2754,
+       "sgst": 2754,
+       "cess": 0
+      },
+      {
+       "inum": "GLC/2026/0398",
+       "dt": "28-09-2026",
+       "val": 11328,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 9600,
+       "igst": 0,
+       "cgst": 864,
+       "sgst": 864,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "29AADCK7712P1ZX",
+     "trdnm": "KAVERI COMPONENTS PVT LTD",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "KCP/26-27/1187",
+       "dt": "06-10-2026",
+       "val": 44840,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "e-Invoice",
+       "irn": "f6a3cb37ccead9e8e4373bff847ccb6237dc519404525324758359f7025dc4d7",
+       "irngendate": "06-10-2026",
+       "txval": 38000,
+       "igst": 6840,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "27AEZPM6630B1Z8",
+     "trdnm": "MEHTA SWITCHGEAR",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "MS/779",
+       "dt": "13-10-2026",
+       "val": 32568,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 27600,
+       "igst": 4968,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "24AABFU5521J1ZA",
+     "trdnm": "UNITY PLASTICS",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "UP-2026-311",
+       "dt": "15-10-2026",
+       "val": 28560,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 25500,
+       "igst": 3060,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "36AAGFD7754P1ZQ",
+     "trdnm": "DECCAN FASTENERS",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "DF/1043",
+       "dt": "24-10-2026",
+       "val": 24190,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 20500,
+       "igst": 3690,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "27AAPFO2218C1ZF",
+     "trdnm": "OM SAI CABLES",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "OSC/0045/26-27",
+       "dt": "10-10-2026",
+       "val": 29500,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "",
+       "irn": "",
+       "irngendate": "",
+       "txval": 25000,
+       "igst": 0,
+       "cgst": 2250,
+       "sgst": 2250,
+       "cess": 0
+      }
+     ]
+    },
+    {
+     "ctin": "33AAACB9081Q1Z8",
+     "trdnm": "BHARAT ELECTRICALS LTD",
+     "supprd": "102026",
+     "supfildt": "11-11-2026",
+     "inv": [
+      {
+       "inum": "BEL/IN/90342",
+       "dt": "17-10-2026",
+       "val": 118000,
+       "pos": "27",
+       "rev": "N",
+       "typ": "R",
+       "itcavl": "Y",
+       "rsn": "",
+       "diffprcnt": 1,
+       "srctyp": "e-Invoice",
+       "irn": "beb2604783781eb85b24e46e26a8f4b86bbdd9994069e1c89941ff618422f225",
+       "irngendate": "17-10-2026",
+       "txval": 100000,
+       "igst": 18000,
+       "cgst": 0,
+       "sgst": 0,
+       "cess": 0
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
